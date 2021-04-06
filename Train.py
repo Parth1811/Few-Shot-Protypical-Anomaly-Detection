@@ -87,11 +87,11 @@ params_decoder = list(model.decoder.parameters())
 params = params_encoder + params_decoder
 optimizer = torch.optim.Adam(params, lr = args.lr)
 scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer,T_max =args.epochs)
-model#.cuda()
+model.cuda()
 
 
 # Report the training process
-log_dir = os.path.join('./exp', args.dataset_type, args.exp_dir)
+log_dir = os.path.join(args.exp_dir, args.dataset_type)
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
 orig_stdout = sys.stdout
@@ -101,8 +101,9 @@ orig_stdout = sys.stdout
 loss_func_mse = nn.MSELoss(reduction='none')
 if args.m_items_dir is not None:
     m_items = torch.load(args.m_items_dir, map_location=torch.device('cpu'))
+    m_items.cuda()
 else:
-    m_items = F.normalize(torch.rand((args.msize, args.mdim), dtype=torch.float), dim=1)#.cuda() # Initialize the memory items
+    m_items = F.normalize(torch.rand((args.msize, args.mdim), dtype=torch.float), dim=1).cuda() # Initialize the memory items
 
 # Training
 
@@ -129,8 +130,8 @@ for epoch in range(args.epochs):
             inner_optimizer = torch.optim.Adam(inner_params, lr = args.lr)
 
             try:
-                imgs = Variable(next(train_batch))#.cuda()
-                imgs_val = Variable(next(val_batch))#.cuda()
+                imgs = Variable(next(train_batch)).cuda()
+                imgs_val = Variable(next(val_batch)).cuda()
             except StopIteration:
                 continue
 
