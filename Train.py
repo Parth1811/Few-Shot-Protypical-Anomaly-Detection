@@ -117,11 +117,11 @@ for epoch in range(args.epochs):
 
 
     for iter in range(iterations):
-
+        print("Iteration ...... %d" % iter)
         scenes = train_dataset.get_dataloaders_of_N_random_scenes(N)
         optimizer.zero_grad()
 
-        for train_batch, val_batch in scenes:
+        for sccene, train_batch, val_batch in scenes:
 
             inner_model = copy.deepcopy(model)
             inner_params_encoder =  list(inner_model.encoder.parameters())
@@ -133,7 +133,12 @@ for epoch in range(args.epochs):
                 imgs = Variable(next(train_batch)).cuda()
                 imgs_val = Variable(next(val_batch)).cuda()
             except StopIteration:
-                continue
+                train_dataset.scenes.remove(scene)
+            except IndexError as e:
+                print('--------ERROR--------')
+                print(e)
+                print('-----END OF ERROR----')
+
 
             outputs, _, _, m_items, softmax_score_query, softmax_score_memory, separateness_loss, compactness_loss = inner_model.forward(imgs[:,0:12], m_items, True)
 

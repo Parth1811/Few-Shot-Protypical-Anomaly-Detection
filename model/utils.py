@@ -98,7 +98,7 @@ class SceneLoader:
                     num_workers=2, drop_last=True)
 
             self.scenes_dataloader[scene] = (dl_train, dl_val)
-            self.dataloader_iters[scene] = (iter(dl_train), iter(dl_val))
+            self.dataloader_iters[scene] = (scene, iter(dl_train), iter(dl_val))
 
 
     def get_dataloaders_of_N_random_scenes(self, N):
