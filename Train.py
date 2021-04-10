@@ -143,11 +143,11 @@ for epoch in range(args.epochs):
                 imgs = Variable(next(train_batch)).cuda()
                 imgs_val = Variable(next(train_batch)).cuda()
             except StopIteration:
-                train_dataset.scenes.remove(scene)
-            except IndexError as e:
-                print('--------ERROR--------')
-                print(e)
-                print('-----END OF ERROR----')
+                if scene in train_dataset.scenes:
+                    train_dataset.scenes.remove(scene)
+                continue
+            except:
+                continue
 
 
             outputs, _, _, m_items, softmax_score_query, softmax_score_memory, separateness_loss, compactness_loss = inner_model.forward(imgs[:,0:12], m_items, True)
