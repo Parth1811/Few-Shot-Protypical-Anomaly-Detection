@@ -79,7 +79,7 @@ train_dataset = SceneLoader(train_folder, transforms.Compose([
 
 # Model setting
 if args.model_dir is not None:
-    model = torch.load(args.model_dir, map_location=torch.device('cpu'))
+    model = torch.load(args.model_dir)
 else:
     model = convAE(args.c, args.t_length, args.msize, args.fdim, args.mdim)
 params_encoder =  list(model.encoder.parameters())
@@ -100,7 +100,7 @@ orig_stdout = sys.stdout
 
 loss_func_mse = nn.MSELoss(reduction='none')
 if args.m_items_dir is not None:
-    m_items = torch.load(args.m_items_dir, map_location=torch.device('cpu'))
+    m_items = torch.load(args.m_items_dir)
     m_items.cuda()
 else:
     m_items = F.normalize(torch.rand((args.msize, args.mdim), dtype=torch.float), dim=1).cuda() # Initialize the memory items
@@ -118,10 +118,16 @@ for epoch in range(args.epochs):
 
     for iter in range(iterations):
         print("Iteration ...... %d" % iter)
-        scenes = train_dataset.get_dataloaders_of_N_random_scenes(N)
+        try:
+            scenes = train_dataset.get_dataloaders_of_N_random_scenes(N)
+        except ValueError:
+            train_dataset = SceneLoader(train_folder, transforms.Compose([
+                                transforms.ToTensor(),
+                                ]), resize_height=args.h, resize_width=args.w, k_shots=args.k_shots,time_step=args.t_length-1)
+            scenes = train_dataset.get_dataloaders_of_N_random_scenes(N)
         optimizer.zero_grad()
 
-        for sccene, train_batch, val_batch in scenes:
+        for scene, train_batch in scenes:
 
             inner_model = copy.deepcopy(model)
             inner_params_encoder =  list(inner_model.encoder.parameters())
@@ -131,7 +137,7 @@ for epoch in range(args.epochs):
 
             try:
                 imgs = Variable(next(train_batch)).cuda()
-                imgs_val = Variable(next(val_batch)).cuda()
+                imgs_val = Variable(next(train_batch)).cuda()
             except StopIteration:
                 train_dataset.scenes.remove(scene)
             except IndexError as e:

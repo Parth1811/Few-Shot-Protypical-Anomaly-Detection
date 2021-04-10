@@ -6,7 +6,6 @@ import cv2
 import torch
 import torch.utils.data as data
 
-
 rng = np.random.RandomState(2020)
 
 def np_load_frame(filename, resize_height, resize_width):
@@ -24,8 +23,6 @@ def np_load_frame(filename, resize_height, resize_width):
     image_resized = image_resized.astype(dtype=np.float32)
     image_resized = (image_resized / 127.5) - 1.0
     return image_resized
-
-
 
 
 class DataLoader(data.Dataset):
@@ -69,15 +66,19 @@ class DataLoader(data.Dataset):
 
         batch = []
         for i in range(self._time_step+self._num_pred):
-            image = np_load_frame(self.videos[video_name]['frame'][frame_name+i], self._resize_height, self._resize_width)
-            if self.transform is not None:
-                batch.append(self.transform(image))
+            try:
+                image = np_load_frame(self.samples[index][:-8] + '%04d.jpg'%(frame_name+i) , self._resize_height, self._resize_width)
+                if self.transform is not None:
+                    batch.append(self.transform(image))
+            except:
+                print(self.samples[index][:-8] + '%04d.jpg'%(frame_name+i))
 
         return np.concatenate(batch, axis=0)
 
 
     def __len__(self):
         return len(self.samples)
+
 
 class SceneLoader:
 
@@ -91,14 +92,14 @@ class SceneLoader:
             self.scenes.append(scene)
             dataset = DataLoader(scene_path, transform, resize_height=resize_height,
                              resize_width=resize_width, time_step=time_step)
-            train_set, val_set = torch.utils.data.random_split(dataset, [len(dataset)//2, len(dataset) - len(dataset)//2])
-            dl_train = data.DataLoader(train_set, batch_size = k_shots, shuffle=True,
+            # train_set, val_set = torch.utils.data.random_split(dataset, [len(dataset)//2, len(dataset) - len(dataset)//2])
+            dl_train = data.DataLoader(dataset, batch_size = k_shots, shuffle=True,
                              num_workers=2, drop_last=True)
-            dl_val = data.DataLoader(val_set, batch_size = k_shots, shuffle=True,
-                    num_workers=2, drop_last=True)
+            # dl_val = data.DataLoader(val_set, batch_size = k_shots, shuffle=True,
+                    # num_workers=2, drop_last=True)
 
-            self.scenes_dataloader[scene] = (dl_train, dl_val)
-            self.dataloader_iters[scene] = (scene, iter(dl_train), iter(dl_val))
+            self.scenes_dataloader[scene] = dl_train
+            self.dataloader_iters[scene] = (scene, iter(dl_train))
 
 
     def get_dataloaders_of_N_random_scenes(self, N):

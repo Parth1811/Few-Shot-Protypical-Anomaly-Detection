@@ -12,7 +12,7 @@ def random_uniform(shape, low, high, cuda):
     x = torch.rand(*shape)
     result_cpu = (high - low) * x + low
     if cuda:
-        return result_cpu#.cuda()
+        return result_cpu.cuda()
     else:
         return result_cpu
 
@@ -45,7 +45,7 @@ def MemoryLoss(memory):
     m, d = memory.size()
     memory_t = torch.t(memory)
     similarity = (torch.matmul(memory, memory_t))/2 + 1/2 # 30X30
-    identity_mask = torch.eye(m)#.cuda()
+    identity_mask = torch.eye(m).cuda()
     sim = torch.abs(similarity - identity_mask)
 
     return torch.sum(sim)/(m*(m-1))
@@ -88,8 +88,8 @@ class Memory(nn.Module):
 
         m, d = mem.size()
         if train:
-            query_update = torch.zeros((m,d))#.cuda()
-            # random_update = torch.zeros((m,d))#.cuda()
+            query_update = torch.zeros((m,d)).cuda()
+            # random_update = torch.zeros((m,d)).cuda()
             for i in range(m):
                 idx = torch.nonzero(max_indices.squeeze(1)==i)
                 a, _ = idx.size()
@@ -102,7 +102,7 @@ class Memory(nn.Module):
             return query_update
 
         else:
-            query_update = torch.zeros((m,d))#.cuda()
+            query_update = torch.zeros((m,d)).cuda()
             for i in range(m):
                 idx = torch.nonzero(max_indices.squeeze(1)==i)
                 a, _ = idx.size()
