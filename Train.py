@@ -52,6 +52,10 @@ parser.add_argument('--exp_dir', type=str, default='log', help='directory of log
 parser.add_argument('--model_dir', type=str, default=None, help='directory of model')
 parser.add_argument('--m_items_dir', type=str, default=None, help='directory of model')
 parser.add_argument('--k_shots', type=int, default=4, help='Number of K shots allowed in few shot learning')
+parser.add_argument('--N', type=int, default=4, help='Number of Scenes sampled at a time')
+parser.add_argument('--iterations', type=int, default=1000, help='Number of iterations for the training loop')
+
+
 
 args = parser.parse_args()
 
@@ -107,8 +111,8 @@ else:
 
 # Training
 
-iterations = 1000
-N = 4
+iterations = args.iterations
+N = args.N
 
 for epoch in range(args.epochs):
     labels_list = []
