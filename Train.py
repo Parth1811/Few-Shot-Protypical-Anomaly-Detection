@@ -98,9 +98,6 @@ model.cuda()
 log_dir = os.path.join(args.exp_dir, args.dataset_type)
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
-orig_stdout = sys.stdout
-# f = open(os.path.join(log_dir, 'log.txt'),'w')
-# sys.stdout= f
 
 loss_func_mse = nn.MSELoss(reduction='none')
 if args.m_items_dir is not None:
@@ -187,6 +184,3 @@ print('Training is finished')
 # Save the model and the memory items
 torch.save(model, os.path.join(log_dir, 'model.pth'))
 torch.save(m_items, os.path.join(log_dir, 'keys.pt'))
-
-sys.stdout = orig_stdout
-f.close()
