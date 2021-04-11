@@ -54,6 +54,7 @@ parser.add_argument('--m_items_dir', type=str, default=None, help='directory of 
 parser.add_argument('--k_shots', type=int, default=4, help='Number of K shots allowed in few shot learning')
 parser.add_argument('--N', type=int, default=4, help='Number of Scenes sampled at a time')
 parser.add_argument('--iterations', type=int, default=1000, help='Number of iterations for the training loop')
+parser.add_argument('--seperate_save_files_per_epochs', type=bool, default=False, help='Flag which determines wether or not to overide model files while saving')
 
 
 
@@ -180,8 +181,12 @@ for epoch in range(args.epochs):
     print('Memory_items:')
     print(m_items)
     print('----------------------------------------')
-    torch.save(model, os.path.join(log_dir, 'model.pth'))
-    torch.save(m_items, os.path.join(log_dir, 'keys.pt'))
+    if args.seperate_save_files_per_epochs:
+        torch.save(model, os.path.join(log_dir, 'model_%d.pth' % epoch))
+        torch.save(m_items, os.path.join(log_dir, 'keys_%d.pt' % epoch))
+    else:
+        torch.save(model, os.path.join(log_dir, 'model.pth'))
+        torch.save(m_items, os.path.join(log_dir, 'keys.pt'))
 
 print('Training is finished')
 # Save the model and the memory items
