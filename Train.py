@@ -118,7 +118,8 @@ for epoch in range(args.epochs):
 
 
     for iter in range(iterations):
-        print("Iteration ...... %d" % iter)
+        if iter % 100 == 0:
+            print("Iteration ...... %d" % iter)
         try:
             scenes = train_dataset.get_dataloaders_of_N_random_scenes(N)
         except ValueError:
@@ -179,8 +180,8 @@ for epoch in range(args.epochs):
     print('Memory_items:')
     print(m_items)
     print('----------------------------------------')
+    torch.save(model, os.path.join(log_dir, 'model.pth'))
+    torch.save(m_items, os.path.join(log_dir, 'keys.pt'))
 
 print('Training is finished')
 # Save the model and the memory items
-torch.save(model, os.path.join(log_dir, 'model.pth'))
-torch.save(m_items, os.path.join(log_dir, 'keys.pt'))
