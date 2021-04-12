@@ -73,6 +73,7 @@ if args.model_dir is not None:
 else:
     model = convAE(args.c, args.t_length, args.msize, args.fdim, args.mdim)
 model.cuda()
+model.train()
 
 if args.m_items_dir is not None:
     m_items = torch.load(args.m_items_dir)
@@ -107,12 +108,13 @@ logger = setup_logger(log_file_path)
 # Training
 logger.info('Training has Started')
 for epoch in range(args.epochs):
-    labels_list = []
-    model.train()
 
+    # Repeating iteration for Meta-Training
     for iter in range(args.iterations):
         if iter % (args.iterations // 10) == 0:
             logger.log(15, "Iteration ...... %d" % iter)
+
+        # Sampling N scenes from the dataset
         try:
             scenes = train_dataset.get_dataloaders_of_N_random_scenes(args.N)
         except ValueError:
@@ -120,48 +122,58 @@ for epoch in range(args.epochs):
                                 transforms.ToTensor(),
                                 ]), resize_height=args.h, resize_width=args.w, k_shots=args.k_shots,time_step=args.t_length-1)
             scenes = train_dataset.get_dataloaders_of_N_random_scenes(args.N)
+
+        # Clearing gradients from previous pass
         optimizer.zero_grad()
 
+        # Inner update loop for each scene
         for scene, train_batch in scenes:
 
+            # Cloning the model, which would be used in inner update
             inner_model = copy.deepcopy(model)
             inner_params_encoder =  list(inner_model.encoder.parameters())
             inner_params_decoder = list(inner_model.decoder.parameters())
             inner_params = inner_params_encoder + inner_params_decoder
             inner_optimizer = torch.optim.Adam(inner_params, lr = args.lr)
 
+            #Sampling k samples for training and validation each
             try:
                 imgs = Variable(next(train_batch)).cuda()
                 imgs_val = Variable(next(train_batch)).cuda()
-            except StopIteration:
+            except StopIteration as e:
                 if scene in train_dataset.scenes:
                     train_dataset.scenes.remove(scene)
+                    logger.log(15, "Removed scene '%s' for the list of Scenes since exhausted all images", scene)
                 continue
-            except:
+            except Exception as e:
+                logger.error(str(e))
                 continue
 
-
+            # Forward pass
             outputs, _, _, m_items, softmax_score_query, softmax_score_memory, separateness_loss, compactness_loss = inner_model.forward(imgs[:,0:12], m_items, True)
 
+            # Performing the inner update on clone model
             inner_optimizer.zero_grad()
             loss_pixel = torch.mean(loss_func_mse(outputs, imgs[:,12:]))
             loss = loss_pixel + args.loss_compact * compactness_loss + args.loss_separate * separateness_loss
             loss.backward(retain_graph=True)
             inner_optimizer.step()
 
+            # Computing gradient of updated model on the validation set
             inner_optimizer.zero_grad()
-
             outputs, _, _, m_items, softmax_score_query, softmax_score_memory, separateness_loss, compactness_loss = inner_model.forward(imgs_val[:,0:12], m_items, True)
-
             loss_pixel = torch.mean(loss_func_mse(outputs, imgs_val[:,12:]))
             loss = loss_pixel + args.loss_compact * compactness_loss + args.loss_separate * separateness_loss
             loss.backward(retain_graph=True)
+
+            # Accumulation the gradients from each scene to perform a outer update
             for i in range(len(params)):
                 if params[i].grad is None:
                     params[i].grad = copy.deepcopy(inner_params[i].grad)
                 else:
                     params[i].grad += inner_params[i].grad
 
+        # Perfoming outer update
         optimizer.step()
 
 
