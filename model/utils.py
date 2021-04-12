@@ -1,12 +1,12 @@
-import numpy as np
-from collections import OrderedDict
-import os
 import glob
-import cv2
-import torch
-import torch.utils.data as data
+import os
+from collections import OrderedDict
 
+import cv2
+import numpy as np
+import torch.utils.data as data
 rng = np.random.RandomState(2020)
+
 
 def np_load_frame(filename, resize_height, resize_width):
     """
@@ -37,7 +37,6 @@ class DataLoader(data.Dataset):
         self.setup()
         self.samples = self.get_all_samples()
 
-
     def setup(self):
         videos = glob.glob(os.path.join(self.dir, '*'))
         for video in sorted(videos):
@@ -48,33 +47,30 @@ class DataLoader(data.Dataset):
             self.videos[video_name]['frame'].sort()
             self.videos[video_name]['length'] = len(self.videos[video_name]['frame'])
 
-
     def get_all_samples(self):
         frames = []
         videos = glob.glob(os.path.join(self.dir, '*'))
         for video in sorted(videos):
             video_name = video.split('/')[-1]
-            for i in range(len(self.videos[video_name]['frame'])-self._time_step):
+            for i in range(len(self.videos[video_name]['frame']) - self._time_step):
                 frames.append(self.videos[video_name]['frame'][i])
 
         return frames
 
-
     def __getitem__(self, index):
-        video_name = self.samples[index].split('/')[-2]
+        # video_name = self.samples[index].split('/')[-2]
         frame_name = int(self.samples[index].split('/')[-1].split('.')[-2])
 
         batch = []
-        for i in range(self._time_step+self._num_pred):
+        for i in range(self._time_step + self._num_pred):
             try:
-                image = np_load_frame(self.samples[index][:-8] + '%04d.jpg'%(frame_name+i) , self._resize_height, self._resize_width)
+                image = np_load_frame(self.samples[index][:-8] + '%04d.jpg' % (frame_name + i), self._resize_height, self._resize_width)
                 if self.transform is not None:
                     batch.append(self.transform(image))
-            except:
-                print(self.samples[index][:-8] + '%04d.jpg'%(frame_name+i))
+            except IndexError:
+                print(self.samples[index][:-8] + '%04d.jpg' % (frame_name + i))
 
         return np.concatenate(batch, axis=0)
-
 
     def __len__(self):
         return len(self.samples)
@@ -91,16 +87,15 @@ class SceneLoader:
             scene = scene_path.split('/')[-1]
             self.scenes.append(scene)
             dataset = DataLoader(scene_path, transform, resize_height=resize_height,
-                             resize_width=resize_width, time_step=time_step)
+                                 resize_width=resize_width, time_step=time_step)
             # train_set, val_set = torch.utils.data.random_split(dataset, [len(dataset)//2, len(dataset) - len(dataset)//2])
-            dl_train = data.DataLoader(dataset, batch_size = k_shots, shuffle=True,
-                             num_workers=2, drop_last=True)
+            dl_train = data.DataLoader(dataset, batch_size=k_shots, shuffle=True,
+                                       num_workers=2, drop_last=True)
             # dl_val = data.DataLoader(val_set, batch_size = k_shots, shuffle=True,
-                    # num_workers=2, drop_last=True)
+            #                          num_workers=2, drop_last=True)
 
             self.scenes_dataloader[scene] = dl_train
             self.dataloader_iters[scene] = (scene, iter(dl_train))
-
 
     def get_dataloaders_of_N_random_scenes(self, N):
         samples = np.random.choice(self.scenes, N)

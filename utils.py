@@ -1,26 +1,22 @@
-import numpy as np
-import os
-import sys
-import torch
-import logging
-import torch.nn as nn
-import torch.nn.functional as F
-import torchvision
-import torchvision.utils as v_utils
-import matplotlib.pyplot as plt
-import cv2
-import math
-from collections import OrderedDict
 import copy
-import time
+import logging
+import math
+import sys
+
+import numpy as np
+import torch
+import torch.nn as nn
 from sklearn.metrics import roc_auc_score
+
 
 def rmse(predictions, targets):
     return np.sqrt(((predictions - targets) ** 2).mean())
 
+
 def psnr(mse):
 
     return 10 * math.log10(1 / mse)
+
 
 def get_lr(optimizer):
     for param_group in optimizer.param_groups:
@@ -35,19 +31,22 @@ def normalize_img(img):
 
     return img_re
 
-def point_score(outputs, imgs):
 
+def point_score(outputs, imgs):
     loss_func_mse = nn.MSELoss(reduction='none')
-    error = loss_func_mse((outputs[0]+1)/2,(imgs[0]+1)/2)
-    normal = (1-torch.exp(-error))
-    score = (torch.sum(normal*loss_func_mse((outputs[0]+1)/2,(imgs[0]+1)/2)) / torch.sum(normal)).item()
+    error = loss_func_mse((outputs[0] + 1) / 2, (imgs[0] + 1) / 2)
+    normal = (1 - torch.exp(- error))
+    score = (torch.sum(normal * loss_func_mse((outputs[0] + 1) / 2, (imgs[0] + 1) / 2)) / torch.sum(normal)).item()
     return score
 
+
 def anomaly_score(psnr, max_psnr, min_psnr):
-    return ((psnr - min_psnr) / (max_psnr-min_psnr))
+    return ((psnr - min_psnr) / (max_psnr - min_psnr))
+
 
 def anomaly_score_inv(psnr, max_psnr, min_psnr):
-    return (1.0 - ((psnr - min_psnr) / (max_psnr-min_psnr)))
+    return (1.0 - ((psnr - min_psnr) / (max_psnr - min_psnr)))
+
 
 def anomaly_score_list(psnr_list):
     anomaly_score_list = list()
@@ -56,6 +55,7 @@ def anomaly_score_list(psnr_list):
 
     return anomaly_score_list
 
+
 def anomaly_score_list_inv(psnr_list):
     anomaly_score_list = list()
     for i in range(len(psnr_list)):
@@ -63,16 +63,19 @@ def anomaly_score_list_inv(psnr_list):
 
     return anomaly_score_list
 
+
 def AUC(anomal_scores, labels):
     frame_auc = roc_auc_score(y_true=np.squeeze(labels, axis=0), y_score=np.squeeze(anomal_scores))
     return frame_auc
 
+
 def score_sum(list1, list2, alpha):
     list_result = []
     for i in range(len(list1)):
-        list_result.append((alpha*list1[i]+(1-alpha)*list2[i]))
+        list_result.append((alpha * list1[i] + (1 - alpha) * list2[i]))
 
     return list_result
+
 
 class ColoredConsoleHandler(logging.StreamHandler):
     def emit(self, record):
@@ -95,9 +98,11 @@ class ColoredConsoleHandler(logging.StreamHandler):
         myrecord.msg = color + str(myrecord.msg) + '\x1b[0m'  # normal
         logging.StreamHandler.emit(self, myrecord)
 
+
 def setup_logger(log_file_path):
-    formatter = logging.Formatter('%(asctime)s : %(levelname)s : %(message)s',
-        datefmt = '%m/%d/%y %I:%M:%S %p'
+    formatter = logging.Formatter(
+        '%(asctime)s : %(levelname)s : %(message)s',
+        datefmt='%m/%d/%y %I:%M:%S %p'
     )
 
     file_handler = logging.FileHandler(
@@ -111,14 +116,14 @@ def setup_logger(log_file_path):
     stdout_handler.setFormatter(formatter)
     stdout_handler.setLevel(logging.DEBUG + 5)
 
-    logger=logging.getLogger()
+    logger = logging.getLogger()
     logger.addHandler(file_handler)
     logger.addHandler(stdout_handler)
     logger.setLevel(logging.DEBUG)
 
-    logging.addLevelName(15, "Inside Iteration")     #pink
-    logging.addLevelName(35, "Epoch End")            #yellow
-    logging.addLevelName(45, "Model Save")           #red
-    logging.addLevelName(25, "Log saved")            #cyan
+    logging.addLevelName(15, "Inside Iteration")     # pink
+    logging.addLevelName(35, "Epoch End")            # yellow
+    logging.addLevelName(45, "Model Save")           # red
+    logging.addLevelName(25, "Log saved")            # cyan
 
     return logger

@@ -1,8 +1,8 @@
 import argparse
 import copy
-from datetime import datetime
 import os
 import warnings
+from datetime import datetime
 
 import torch
 import torch.nn as nn
@@ -12,12 +12,14 @@ import torchvision.transforms as transforms
 from torch.autograd import Variable
 from torch.serialization import SourceChangeWarning
 
-from model.final_future_prediction_with_memory_spatial_sumonly_weight_ranking_top1 import convAE
+from model.model import convAE
 from model.utils import SceneLoader
 from utils import *
 
+
 # Muting the source change warnings
 warnings.filterwarnings("ignore", category=SourceChangeWarning)
+
 
 # Parsing the input command arguments
 parser = argparse.ArgumentParser(description="MNAD")
@@ -45,26 +47,36 @@ parser.add_argument('--iterations', type=int, default=1000, help='Number of iter
 parser.add_argument('--seperate_save_files_per_epochs', type=bool, default=False, help='Flag which determines wether or not to overide model files while saving')
 args = parser.parse_args()
 
+
 # Setting up the GPU
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 if args.gpus is None:
     gpus = "0"
-    os.environ["CUDA_VISIBLE_DEVICES"]= gpus
+    os.environ["CUDA_VISIBLE_DEVICES"] = gpus
 else:
     gpus = ""
     for i in range(len(args.gpus)):
         gpus = gpus + args.gpus[i] + ","
-    os.environ["CUDA_VISIBLE_DEVICES"]= gpus[:-1]
+    os.environ["CUDA_VISIBLE_DEVICES"] = gpus[:-1]
+
 
 # Setting up pytorch environment
 torch.manual_seed(2021)
-torch.backends.cudnn.enabled = True # make sure to use cudnn for computational performance
+torch.backends.cudnn.enabled = True     # make sure to use cudnn for computational performance
+
 
 # Loading dataset
-train_folder = os.path.join(args.dataset_path,args.dataset_type,"training/scenes")
-train_dataset = SceneLoader(train_folder, transforms.Compose([
-             transforms.ToTensor(),
-             ]), resize_height=args.h, resize_width=args.w, k_shots=args.k_shots,time_step=args.t_length-1)
+train_folder = os.path.join(args.dataset_path, args.dataset_type, "training/scenes")
+train_dataset = SceneLoader(
+    train_folder,
+    transforms.Compose([
+        transforms.ToTensor(),
+    ]),
+    resize_height=args.h,
+    resize_width=args.w,
+    k_shots=args.k_shots,
+    time_step=args.t_length - 1
+)
 
 
 # Setting up the model, memory items and optimizers
@@ -78,20 +90,22 @@ model.train()
 if args.m_items_dir is not None:
     m_items = torch.load(args.m_items_dir)
 else:
-    m_items = F.normalize(torch.rand((args.msize, args.mdim), dtype=torch.float), dim=1) # Initialize the memory items
+    m_items = F.normalize(torch.rand((args.msize, args.mdim), dtype=torch.float), dim=1)
 m_items.cuda()
 
-params_encoder =  list(model.encoder.parameters())
+params_encoder = list(model.encoder.parameters())
 params_decoder = list(model.decoder.parameters())
 params = params_encoder + params_decoder
-optimizer = torch.optim.Adam(params, lr = args.lr)
-scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer,T_max =args.epochs)
+optimizer = torch.optim.Adam(params, lr=args.lr)
+scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
 loss_func_mse = nn.MSELoss(reduction='none')
+
 
 # attaching date and time to make names unique
 run_start_time = datetime.now()
 def attach_datetime(string):
     return string + run_start_time.strftime(f"_%d-%m-%H-%M")
+
 
 # Setting up the logging modules
 # Log levels
@@ -102,8 +116,9 @@ def attach_datetime(string):
 log_dir = os.path.join(args.log_dir, args.dataset_type)
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
-log_file_path = os.path.join(log_dir, attach_datetime('run')+'.log')
+log_file_path = os.path.join(log_dir, attach_datetime('run') + '.log')
 logger = setup_logger(log_file_path)
+
 
 # Training
 logger.info('Training has Started')
@@ -118,9 +133,14 @@ for epoch in range(args.epochs):
         try:
             scenes = train_dataset.get_dataloaders_of_N_random_scenes(args.N)
         except ValueError:
-            train_dataset = SceneLoader(train_folder, transforms.Compose([
-                                transforms.ToTensor(),
-                                ]), resize_height=args.h, resize_width=args.w, k_shots=args.k_shots,time_step=args.t_length-1)
+            train_dataset = SceneLoader(
+                train_folder,
+                transforms.Compose([transforms.ToTensor()]),
+                resize_height=args.h,
+                resize_width=args.w,
+                k_shots=args.k_shots,
+                time_step=args.t_length - 1
+            )
             scenes = train_dataset.get_dataloaders_of_N_random_scenes(args.N)
 
         # Clearing gradients from previous pass
@@ -131,12 +151,12 @@ for epoch in range(args.epochs):
 
             # Cloning the model, which would be used in inner update
             inner_model = copy.deepcopy(model)
-            inner_params_encoder =  list(inner_model.encoder.parameters())
+            inner_params_encoder = list(inner_model.encoder.parameters())
             inner_params_decoder = list(inner_model.decoder.parameters())
             inner_params = inner_params_encoder + inner_params_decoder
-            inner_optimizer = torch.optim.Adam(inner_params, lr = args.lr)
+            inner_optimizer = torch.optim.Adam(inner_params, lr=args.lr)
 
-            #Sampling k samples for training and validation each
+            # Sampling k samples for training and validation each
             try:
                 imgs = Variable(next(train_batch)).cuda()
                 imgs_val = Variable(next(train_batch)).cuda()
@@ -150,19 +170,19 @@ for epoch in range(args.epochs):
                 continue
 
             # Forward pass
-            outputs, _, _, m_items, softmax_score_query, softmax_score_memory, separateness_loss, compactness_loss = inner_model.forward(imgs[:,0:12], m_items, True)
+            outputs, _, _, m_items, softmax_score_query, softmax_score_memory, separateness_loss, compactness_loss = inner_model.forward(imgs[:, 0:12], m_items, True)
 
             # Performing the inner update on clone model
             inner_optimizer.zero_grad()
-            loss_pixel = torch.mean(loss_func_mse(outputs, imgs[:,12:]))
+            loss_pixel = torch.mean(loss_func_mse(outputs, imgs[:, 12:]))
             loss = loss_pixel + args.loss_compact * compactness_loss + args.loss_separate * separateness_loss
             loss.backward(retain_graph=True)
             inner_optimizer.step()
 
             # Computing gradient of updated model on the validation set
             inner_optimizer.zero_grad()
-            outputs, _, _, m_items, softmax_score_query, softmax_score_memory, separateness_loss, compactness_loss = inner_model.forward(imgs_val[:,0:12], m_items, True)
-            loss_pixel = torch.mean(loss_func_mse(outputs, imgs_val[:,12:]))
+            outputs, _, _, m_items, softmax_score_query, softmax_score_memory, separateness_loss, compactness_loss = inner_model.forward(imgs_val[:, 0:12], m_items, True)
+            loss_pixel = torch.mean(loss_func_mse(outputs, imgs_val[:, 12:]))
             loss = loss_pixel + args.loss_compact * compactness_loss + args.loss_separate * separateness_loss
             loss.backward(retain_graph=True)
 
@@ -176,11 +196,10 @@ for epoch in range(args.epochs):
         # Perfoming outer update
         optimizer.step()
 
-
     scheduler.step()
 
     print('----------------------------------------')
-    logger.log(35, 'Epoch: ' + str(epoch+1))
+    logger.log(35, 'Epoch: ' + str(epoch + 1))
     logger.log(35, 'Loss: Reconstruction {:.6f}/ Compactness {:.6f}/ Separateness {:.6f}'.format(loss_pixel.item(), compactness_loss.item(), separateness_loss.item()))
     print('Memory_items:')
     print(m_items)
