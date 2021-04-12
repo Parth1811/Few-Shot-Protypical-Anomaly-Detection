@@ -127,7 +127,7 @@ for epoch in range(args.epochs):
     # Repeating iteration for Meta-Training
     for iter in range(args.iterations):
         if iter % (args.iterations // 10) == 0:
-            logger.log(15, "Iteration ...... %d" % iter)
+            logger.log(15, "Epoch: %d : Iteration: %d" % (epoch, iter))
 
         # Sampling N scenes from the dataset
         try:
@@ -141,6 +141,7 @@ for epoch in range(args.epochs):
                 k_shots=args.k_shots,
                 time_step=args.time_step
             )
+            logger.log(15, "Epoch: %d : Iteration: %d : Recreated the SceneLoader object ", epoch, iter)
             scenes = train_dataset.get_dataloaders_of_N_random_scenes(args.N)
 
         # Clearing gradients from previous pass
@@ -163,7 +164,7 @@ for epoch in range(args.epochs):
             except StopIteration as e:
                 if scene in train_dataset.scenes:
                     train_dataset.scenes.remove(scene)
-                    logger.log(15, "Removed scene '%s' for the list of Scenes since exhausted all images", scene)
+                    logger.log(15, "Epoch: %d : Iteration: %d : Removed scene '%s' for the list of Scenes since exhausted all images", epoch, iter, scene)
                 continue
             except Exception as e:
                 logger.error(str(e))
@@ -216,4 +217,4 @@ for epoch in range(args.epochs):
         logger.log(45, "Saved Memory Items in " + os.path.join(log_dir, 'keys.pt'))
 
 logger.info('Training is finished')
-logger.log(25, "Saved log file")
+logger.log(25, "Saved log file " + log_file_path)
