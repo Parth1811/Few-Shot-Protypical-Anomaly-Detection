@@ -12,7 +12,7 @@ import torchvision.transforms as transforms
 from torch.autograd import Variable
 from torch.serialization import SourceChangeWarning
 
-from model.model import convAE
+from model.final_future_prediction_with_memory_spatial_sumonly_weight_ranking_top1 import convAE
 from model.utils import SceneLoader
 from utils import *
 
