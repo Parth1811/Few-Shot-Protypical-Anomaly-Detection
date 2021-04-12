@@ -1,28 +1,14 @@
 import argparse
 import copy
-# import math
+from datetime import datetime
 import os
-# import random
-# import sys
-import time
 import warnings
-# from collections import OrderedDict
 
-# import cv2
-# import matplotlib.pyplot as plt
-# import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-# import torch.nn.init as init
 import torch.optim as optim
-# import torch.utils.data as data
-# import torch.utils.data.dataset as dataset
-# import torchvision
-# import torchvision.datasets as dset
 import torchvision.transforms as transforms
-# import torchvision.utils as v_utils
-# from sklearn.metrics import roc_auc_score
 from torch.autograd import Variable
 from torch.serialization import SourceChangeWarning
 
@@ -30,12 +16,12 @@ from model.final_future_prediction_with_memory_spatial_sumonly_weight_ranking_to
 from model.utils import SceneLoader
 from utils import *
 
+# Muting the source change warnings
 warnings.filterwarnings("ignore", category=SourceChangeWarning)
 
+# Parsing the input command arguments
 parser = argparse.ArgumentParser(description="MNAD")
 parser.add_argument('--gpus', nargs='+', type=str, help='gpus')
-parser.add_argument('--batch_size', type=int, default=4, help='batch size for training')
-parser.add_argument('--test_batch_size', type=int, default=1, help='batch size for test')
 parser.add_argument('--epochs', type=int, default=60, help='number of epochs for training')
 parser.add_argument('--loss_compact', type=float, default=0.1, help='weight of the feature compactness loss')
 parser.add_argument('--loss_separate', type=float, default=0.1, help='weight of the feature separateness loss')
@@ -47,25 +33,19 @@ parser.add_argument('--t_length', type=int, default=5, help='length of the frame
 parser.add_argument('--fdim', type=int, default=512, help='channel dimension of the features')
 parser.add_argument('--mdim', type=int, default=512, help='channel dimension of the memory items')
 parser.add_argument('--msize', type=int, default=10, help='number of the memory items')
-parser.add_argument('--alpha', type=float, default=0.6, help='weight for the anomality score')
 parser.add_argument('--num_workers', type=int, default=2, help='number of workers for the train loader')
-parser.add_argument('--num_workers_test', type=int, default=1, help='number of workers for the test loader')
 parser.add_argument('--dataset_type', type=str, default='shanghaitech', help='type of dataset: ped2, avenue, shanghai')
 parser.add_argument('--dataset_path', type=str, default='./dataset/', help='directory of data')
-parser.add_argument('--exp_dir', type=str, default='log', help='directory of log')
+parser.add_argument('--log_dir', type=str, default='log', help='directory of log')
 parser.add_argument('--model_dir', type=str, default=None, help='directory of model')
 parser.add_argument('--m_items_dir', type=str, default=None, help='directory of model')
 parser.add_argument('--k_shots', type=int, default=4, help='Number of K shots allowed in few shot learning')
 parser.add_argument('--N', type=int, default=4, help='Number of Scenes sampled at a time')
 parser.add_argument('--iterations', type=int, default=1000, help='Number of iterations for the training loop')
 parser.add_argument('--seperate_save_files_per_epochs', type=bool, default=False, help='Flag which determines wether or not to overide model files while saving')
-
-
-
 args = parser.parse_args()
 
-torch.manual_seed(2020)
-
+# Setting up the GPU
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 if args.gpus is None:
     gpus = "0"
@@ -76,62 +56,70 @@ else:
         gpus = gpus + args.gpus[i] + ","
     os.environ["CUDA_VISIBLE_DEVICES"]= gpus[:-1]
 
+# Setting up pytorch environment
+torch.manual_seed(2021)
 torch.backends.cudnn.enabled = True # make sure to use cudnn for computational performance
 
-train_folder = os.path.join(args.dataset_path,args.dataset_type,"training/scenes")
-
 # Loading dataset
+train_folder = os.path.join(args.dataset_path,args.dataset_type,"training/scenes")
 train_dataset = SceneLoader(train_folder, transforms.Compose([
              transforms.ToTensor(),
              ]), resize_height=args.h, resize_width=args.w, k_shots=args.k_shots,time_step=args.t_length-1)
 
 
-# Model setting
+# Setting up the model, memory items and optimizers
 if args.model_dir is not None:
     model = torch.load(args.model_dir)
 else:
     model = convAE(args.c, args.t_length, args.msize, args.fdim, args.mdim)
+model.cuda()
+
+if args.m_items_dir is not None:
+    m_items = torch.load(args.m_items_dir)
+else:
+    m_items = F.normalize(torch.rand((args.msize, args.mdim), dtype=torch.float), dim=1) # Initialize the memory items
+m_items.cuda()
+
 params_encoder =  list(model.encoder.parameters())
 params_decoder = list(model.decoder.parameters())
 params = params_encoder + params_decoder
 optimizer = torch.optim.Adam(params, lr = args.lr)
 scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer,T_max =args.epochs)
-model.cuda()
+loss_func_mse = nn.MSELoss(reduction='none')
 
+# attaching date and time to make names unique
+run_start_time = datetime.now()
+def attach_datetime(string):
+    return string + run_start_time.strftime(f"_%d-%m-%H-%M")
 
-# Report the training process
-log_dir = os.path.join(args.exp_dir, args.dataset_type)
+# Setting up the logging modules
+# Log levels
+# Inside Iteration 15
+# Epoch End 35
+# Model save 45
+# Log Save 25
+log_dir = os.path.join(args.log_dir, args.dataset_type)
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
-
-loss_func_mse = nn.MSELoss(reduction='none')
-if args.m_items_dir is not None:
-    m_items = torch.load(args.m_items_dir)
-    m_items.cuda()
-else:
-    m_items = F.normalize(torch.rand((args.msize, args.mdim), dtype=torch.float), dim=1).cuda() # Initialize the memory items
+log_file_path = os.path.join(log_dir, attach_datetime('run')+'.log')
+logger = setup_logger(log_file_path)
 
 # Training
-
-iterations = args.iterations
-N = args.N
-
+logger.info('Training has Started')
 for epoch in range(args.epochs):
     labels_list = []
     model.train()
-    start = time.time()
 
-
-    for iter in range(iterations):
-        if iter % 100 == 0:
-            print("Iteration ...... %d" % iter)
+    for iter in range(args.iterations):
+        if iter % (args.iterations // 10) == 0:
+            logger.log(15, "Iteration ...... %d" % iter)
         try:
-            scenes = train_dataset.get_dataloaders_of_N_random_scenes(N)
+            scenes = train_dataset.get_dataloaders_of_N_random_scenes(args.N)
         except ValueError:
             train_dataset = SceneLoader(train_folder, transforms.Compose([
                                 transforms.ToTensor(),
                                 ]), resize_height=args.h, resize_width=args.w, k_shots=args.k_shots,time_step=args.t_length-1)
-            scenes = train_dataset.get_dataloaders_of_N_random_scenes(N)
+            scenes = train_dataset.get_dataloaders_of_N_random_scenes(args.N)
         optimizer.zero_grad()
 
         for scene, train_batch in scenes:
@@ -180,17 +168,21 @@ for epoch in range(args.epochs):
     scheduler.step()
 
     print('----------------------------------------')
-    print('Epoch:', epoch+1)
-    print('Loss: Reconstruction {:.6f}/ Compactness {:.6f}/ Separateness {:.6f}'.format(loss_pixel.item(), compactness_loss.item(), separateness_loss.item()))
+    logger.log(35, 'Epoch: ' + str(epoch+1))
+    logger.log(35, 'Loss: Reconstruction {:.6f}/ Compactness {:.6f}/ Separateness {:.6f}'.format(loss_pixel.item(), compactness_loss.item(), separateness_loss.item()))
     print('Memory_items:')
     print(m_items)
     print('----------------------------------------')
     if args.seperate_save_files_per_epochs:
         torch.save(model, os.path.join(log_dir, 'model_%d.pth' % epoch))
+        logger.log(45, "Saved Model in " + os.path.join(log_dir, 'model_%d.pth' % epoch))
         torch.save(m_items, os.path.join(log_dir, 'keys_%d.pt' % epoch))
+        logger.log(45, "Saved Memory Items in " + os.path.join(log_dir, 'keys_%d.pt' % epoch))
     else:
         torch.save(model, os.path.join(log_dir, 'model.pth'))
+        logger.log(45, "Saved Model in " + os.path.join(log_dir, 'model.pth' % epoch))
         torch.save(m_items, os.path.join(log_dir, 'keys.pt'))
+        logger.log(45, "Saved Memory Items in " + os.path.join(log_dir, 'keys.pt' % epoch))
 
-print('Training is finished')
-# Save the model and the memory items
+logger.info('Training is finished')
+logger.log(25, "Saved log file")
