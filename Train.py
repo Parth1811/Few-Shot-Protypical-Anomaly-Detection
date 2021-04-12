@@ -211,9 +211,9 @@ for epoch in range(args.epochs):
         logger.log(45, "Saved Memory Items in " + os.path.join(log_dir, 'keys_%d.pt' % epoch))
     else:
         torch.save(model, os.path.join(log_dir, 'model.pth'))
-        logger.log(45, "Saved Model in " + os.path.join(log_dir, 'model.pth' % epoch))
+        logger.log(45, "Saved Model in " + os.path.join(log_dir, 'model.pth'))
         torch.save(m_items, os.path.join(log_dir, 'keys.pt'))
-        logger.log(45, "Saved Memory Items in " + os.path.join(log_dir, 'keys.pt' % epoch))
+        logger.log(45, "Saved Memory Items in " + os.path.join(log_dir, 'keys.pt'))
 
 logger.info('Training is finished')
 logger.log(25, "Saved log file")
