@@ -67,8 +67,11 @@ class DataLoader(data.Dataset):
                 image = np_load_frame(self.samples[index][:-8] + '%04d.jpg' % (frame_name + i), self._resize_height, self._resize_width)
                 if self.transform is not None:
                     batch.append(self.transform(image))
-            except IndexError:
-                print(self.samples[index][:-8] + '%04d.jpg' % (frame_name + i))
+            except Exceptiton as e:
+                raise IndexError(\
+                    'Error while reading ' + self.samples[index][:-8] + '%04d.jpg' % (frame_name + i) + '\n' +
+                    'Please ensure that frames name is in format XXXX.jpg for.eg. 0123.jpg'
+                )
 
         return np.concatenate(batch, axis=0)
 
@@ -78,7 +81,7 @@ class DataLoader(data.Dataset):
 
 class SceneLoader:
 
-    def __init__(self, scenes_folder, transform, resize_height, resize_width, k_shots=4, time_step=4, num_pred=1):
+    def __init__(self, scenes_folder, transform, resize_height, resize_width, k_shots=4, time_step=4, num_pred=1, num_workers=2):
         self.scene_paths = glob.glob(os.path.join(scenes_folder, '*'))
         self.scenes_dataloader = {}
         self.dataloader_iters = {}
@@ -88,12 +91,8 @@ class SceneLoader:
             self.scenes.append(scene)
             dataset = DataLoader(scene_path, transform, resize_height=resize_height,
                                  resize_width=resize_width, time_step=time_step)
-            # train_set, val_set = torch.utils.data.random_split(dataset, [len(dataset)//2, len(dataset) - len(dataset)//2])
             dl_train = data.DataLoader(dataset, batch_size=k_shots, shuffle=True,
-                                       num_workers=2, drop_last=True)
-            # dl_val = data.DataLoader(val_set, batch_size = k_shots, shuffle=True,
-            #                          num_workers=2, drop_last=True)
-
+                                       num_workers=num_workers, drop_last=True)
             self.scenes_dataloader[scene] = dl_train
             self.dataloader_iters[scene] = (scene, iter(dl_train))
 

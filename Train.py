@@ -30,8 +30,9 @@ parser.add_argument('--loss_separate', type=float, default=0.1, help='weight of 
 parser.add_argument('--h', type=int, default=256, help='height of input images')
 parser.add_argument('--w', type=int, default=256, help='width of input images')
 parser.add_argument('--c', type=int, default=3, help='channel of input images')
-parser.add_argument('--lr', type=float, default=2e-4, help='initial learning rate')
-parser.add_argument('--t_length', type=int, default=5, help='length of the frame sequences')
+parser.add_argument('--inner_lr', type=float, default=2e-4, help='Initial learning rate for inner update')
+parser.add_argument('--outer_lr', type=float, default=2e-4, help='Initial learning rate for outer update')
+parser.add_argument('--time_step', type=int, default=4, help='length of the frame sequences')
 parser.add_argument('--fdim', type=int, default=512, help='channel dimension of the features')
 parser.add_argument('--mdim', type=int, default=512, help='channel dimension of the memory items')
 parser.add_argument('--msize', type=int, default=10, help='number of the memory items')
@@ -69,13 +70,12 @@ torch.backends.cudnn.enabled = True     # make sure to use cudnn for computation
 train_folder = os.path.join(args.dataset_path, args.dataset_type, "training/scenes")
 train_dataset = SceneLoader(
     train_folder,
-    transforms.Compose([
-        transforms.ToTensor(),
-    ]),
+    transforms.Compose([transforms.ToTensor()]),
     resize_height=args.h,
     resize_width=args.w,
     k_shots=args.k_shots,
-    time_step=args.t_length - 1
+    time_step=args.time_step,
+    num_workers=args.num_workers
 )
 
 
@@ -83,7 +83,7 @@ train_dataset = SceneLoader(
 if args.model_dir is not None:
     model = torch.load(args.model_dir)
 else:
-    model = convAE(args.c, args.t_length, args.msize, args.fdim, args.mdim)
+    model = convAE(args.c, args.time_step + 1, args.msize, args.fdim, args.mdim)
 model.cuda()
 model.train()
 
@@ -96,7 +96,7 @@ m_items.cuda()
 params_encoder = list(model.encoder.parameters())
 params_decoder = list(model.decoder.parameters())
 params = params_encoder + params_decoder
-optimizer = torch.optim.Adam(params, lr=args.lr)
+optimizer = torch.optim.Adam(params, lr=args.outer_lr)
 scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
 loss_func_mse = nn.MSELoss(reduction='none')
 
@@ -139,7 +139,7 @@ for epoch in range(args.epochs):
                 resize_height=args.h,
                 resize_width=args.w,
                 k_shots=args.k_shots,
-                time_step=args.t_length - 1
+                time_step=args.time_step
             )
             scenes = train_dataset.get_dataloaders_of_N_random_scenes(args.N)
 
@@ -154,7 +154,7 @@ for epoch in range(args.epochs):
             inner_params_encoder = list(inner_model.encoder.parameters())
             inner_params_decoder = list(inner_model.decoder.parameters())
             inner_params = inner_params_encoder + inner_params_decoder
-            inner_optimizer = torch.optim.Adam(inner_params, lr=args.lr)
+            inner_optimizer = torch.optim.Adam(inner_params, lr=args.inner_lr)
 
             # Sampling k samples for training and validation each
             try:
@@ -170,19 +170,19 @@ for epoch in range(args.epochs):
                 continue
 
             # Forward pass
-            outputs, _, _, m_items, softmax_score_query, softmax_score_memory, separateness_loss, compactness_loss = inner_model.forward(imgs[:, 0:12], m_items, True)
+            outputs, _, _, m_items, softmax_score_query, softmax_score_memory, separateness_loss, compactness_loss = inner_model.forward(imgs[:, 0:3 * args.time_step], m_items, True)
 
             # Performing the inner update on clone model
             inner_optimizer.zero_grad()
-            loss_pixel = torch.mean(loss_func_mse(outputs, imgs[:, 12:]))
+            loss_pixel = torch.mean(loss_func_mse(outputs, imgs[:, 3 * args.time_step:]))
             loss = loss_pixel + args.loss_compact * compactness_loss + args.loss_separate * separateness_loss
             loss.backward(retain_graph=True)
             inner_optimizer.step()
 
             # Computing gradient of updated model on the validation set
             inner_optimizer.zero_grad()
-            outputs, _, _, m_items, softmax_score_query, softmax_score_memory, separateness_loss, compactness_loss = inner_model.forward(imgs_val[:, 0:12], m_items, True)
-            loss_pixel = torch.mean(loss_func_mse(outputs, imgs_val[:, 12:]))
+            outputs, _, _, m_items, softmax_score_query, softmax_score_memory, separateness_loss, compactness_loss = inner_model.forward(imgs_val[:, 0:3 * args.time_step], m_items, True)
+            loss_pixel = torch.mean(loss_func_mse(outputs, imgs_val[:, 3 * args.time_step:]))
             loss = loss_pixel + args.loss_compact * compactness_loss + args.loss_separate * separateness_loss
             loss.backward(retain_graph=True)
 
