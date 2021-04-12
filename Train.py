@@ -1,32 +1,36 @@
-import numpy as np
+import argparse
+import copy
+# import math
 import os
-import sys
+# import random
+# import sys
+import time
+import warnings
+# from collections import OrderedDict
+
+# import cv2
+# import matplotlib.pyplot as plt
+# import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+# import torch.nn.init as init
 import torch.optim as optim
-import torchvision
-import torch.nn.init as init
-import torch.utils.data as data
-import torch.utils.data.dataset as dataset
-import torchvision.datasets as dset
+# import torch.utils.data as data
+# import torch.utils.data.dataset as dataset
+# import torchvision
+# import torchvision.datasets as dset
 import torchvision.transforms as transforms
+# import torchvision.utils as v_utils
+# from sklearn.metrics import roc_auc_score
 from torch.autograd import Variable
-import torchvision.utils as v_utils
-import matplotlib.pyplot as plt
-import cv2
-import math
-from collections import OrderedDict
-import copy
-import time
+from torch.serialization import SourceChangeWarning
+
+from model.final_future_prediction_with_memory_spatial_sumonly_weight_ranking_top1 import convAE
 from model.utils import SceneLoader
-from model.final_future_prediction_with_memory_spatial_sumonly_weight_ranking_top1 import *
-from sklearn.metrics import roc_auc_score
 from utils import *
-import random
 
-import argparse
-
+warnings.filterwarnings("ignore", category=SourceChangeWarning)
 
 parser = argparse.ArgumentParser(description="MNAD")
 parser.add_argument('--gpus', nargs='+', type=str, help='gpus')
