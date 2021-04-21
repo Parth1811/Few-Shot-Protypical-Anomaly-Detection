@@ -58,18 +58,22 @@ class DataLoader(data.Dataset):
         return frames
 
     def __getitem__(self, index):
-        # video_name = self.samples[index].split('/')[-2]
+        video_name = self.samples[index].split('/')[-2]
         frame_name = int(self.samples[index].split('/')[-1].split('.')[-2])
+        iv = int(self.videos[video_name]['frame'][0].split('/')[-1].split('.')[-2])
+        assert self.samples[index] == self.videos[video_name]['frame'][frame_name - iv]
 
         batch = []
         for i in range(self._time_step + self._num_pred):
             try:
-                image = np_load_frame(self.samples[index][:-8] + '%04d.jpg' % (frame_name + i), self._resize_height, self._resize_width)
+                # image = np_load_frame(self.samples[index][:-8] + '%04d.jpg' % (frame_name + i), self._resize_height, self._resize_width)
+                assert frame_name + i == int(self.videos[video_name]['frame'][frame_name + i - iv].split('/')[-1].split('.')[-2])
+                image = np_load_frame(self.videos[video_name]['frame'][frame_name + i - iv], self._resize_height, self._resize_width)
                 if self.transform is not None:
                     batch.append(self.transform(image))
-            except Exceptiton as e:
+            except Exception as e:
                 raise IndexError(\
-                    'Error while reading ' + self.samples[index][:-8] + '%04d.jpg' % (frame_name + i) + '\n' +
+                    'Error while reading ' + self.samples[index] + '\n' +
                     'Please ensure that frames name is in format XXXX.jpg for.eg. 0123.jpg'
                 )
 
