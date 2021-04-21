@@ -1,0 +1,79 @@
+diff --git a/Train.py b/Train.py
+index ca3ad4e..8c19423 100644
+--- a/Train.py
++++ b/Train.py
+@@ -81,17 +81,17 @@ train_dataset = SceneLoader(
+ 
+ # Setting up the model, memory items and optimizers
+ if args.model_dir is not None:
+-    model = torch.load(args.model_dir)
++    model = torch.load(args.model_dir, map_location='cpu')
+ else:
+     model = convAE(args.c, args.time_step + 1, args.msize, args.fdim, args.mdim)
+-model.cuda()
++model#.cuda()
+ model.train()
+ 
+ if args.m_items_dir is not None:
+-    m_items = torch.load(args.m_items_dir)
++    m_items = torch.load(args.m_items_dir, map_location='cpu')
+ else:
+     m_items = F.normalize(torch.rand((args.msize, args.mdim), dtype=torch.float), dim=1)
+-m_items.cuda()
++m_items#.cuda()
+ 
+ params_encoder = list(model.encoder.parameters())
+ params_decoder = list(model.decoder.parameters())
+@@ -159,8 +159,8 @@ for epoch in range(args.epochs):
+ 
+             # Sampling k samples for training and validation each
+             try:
+-                imgs = Variable(next(train_batch)).cuda()
+-                imgs_val = Variable(next(train_batch)).cuda()
++                imgs = Variable(next(train_batch))#.cuda()
++                imgs_val = Variable(next(train_batch))#.cuda()
+             except StopIteration as e:
+                 if scene in train_dataset.scenes:
+                     train_dataset.scenes.remove(scene)
+diff --git a/model/memory_final_spatial_sumonly_weight_ranking_top1.py b/model/memory_final_spatial_sumonly_weight_ranking_top1.py
+index e428c6e..5cb7d6c 100644
+--- a/model/memory_final_spatial_sumonly_weight_ranking_top1.py
++++ b/model/memory_final_spatial_sumonly_weight_ranking_top1.py
+@@ -9,7 +9,7 @@ def random_uniform(shape, low, high, cuda):
+     x = torch.rand(*shape)
+     result_cpu = (high - low) * x + low
+     if cuda:
+-        return result_cpu.cuda()
++        return result_cpu#.cuda()
+     else:
+         return result_cpu
+ 
+@@ -48,7 +48,7 @@ def MemoryLoss(memory):
+     m, d = memory.size()
+     memory_t = torch.t(memory)
+     similarity = (torch.matmul(memory, memory_t)) / 2 + 1 / 2   # 30X30
+-    identity_mask = torch.eye(m).cuda()
++    identity_mask = torch.eye(m)#.cuda()
+     sim = torch.abs(similarity - identity_mask)
+ 
+     return torch.sum(sim) / (m * (m - 1))
+@@ -90,8 +90,8 @@ class Memory(nn.Module):
+ 
+         m, d = mem.size()
+         if train:
+-            query_update = torch.zeros((m, d)).cuda()
+-            # random_update = torch.zeros((m,d)).cuda()
++            query_update = torch.zeros((m, d))#.cuda()
++            # random_update = torch.zeros((m,d))#.cuda()
+             for i in range(m):
+                 idx = torch.nonzero(max_indices.squeeze(1) == i)
+                 a, _ = idx.size()
+@@ -103,7 +103,7 @@ class Memory(nn.Module):
+             return query_update
+ 
+         else:
+-            query_update = torch.zeros((m, d)).cuda()
++            query_update = torch.zeros((m, d))#.cuda()
+             for i in range(m):
+                 idx = torch.nonzero(max_indices.squeeze(1) == i)
+                 a, _ = idx.size()
