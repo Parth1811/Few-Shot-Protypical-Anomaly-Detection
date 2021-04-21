@@ -46,6 +46,7 @@ parser.add_argument('--k_shots', type=int, default=4, help='Number of K shots al
 parser.add_argument('--N', type=int, default=4, help='Number of Scenes sampled at a time')
 parser.add_argument('--iterations', type=int, default=1000, help='Number of iterations for the training loop')
 parser.add_argument('--seperate_save_files_per_epochs', type=bool, default=False, help='Flag which determines wether or not to overide model files while saving')
+parser.add_argument('--single_scene_database', type=bool, default=None, help='Flag changes the behaviour of Dataloader to load when there is only one scene and no seperate scene folders')
 args = parser.parse_args()
 
 
@@ -67,7 +68,12 @@ torch.backends.cudnn.enabled = True     # make sure to use cudnn for computation
 
 
 # Loading dataset
-train_folder = os.path.join(args.dataset_path, args.dataset_type, "training/scenes")
+if args.single_scene_database is None and (args.dataset_type == "ped2" or args.dataset_type == "avenue"):
+    args.single_scene_database = True
+else:
+    args.single_scene_database = False
+train_folder = os.path.join(args.dataset_path, args.dataset_type, "training/frames")
+
 train_dataset = SceneLoader(
     train_folder,
     transforms.Compose([transforms.ToTensor()]),
@@ -75,7 +81,8 @@ train_dataset = SceneLoader(
     resize_width=args.w,
     k_shots=args.k_shots,
     time_step=args.time_step,
-    num_workers=args.num_workers
+    num_workers=args.num_workers,
+    single_scene=args.single_scene_database
 )
 
 

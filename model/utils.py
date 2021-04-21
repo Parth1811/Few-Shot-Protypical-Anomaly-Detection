@@ -85,18 +85,37 @@ class DataLoader(data.Dataset):
 
 class SceneLoader:
 
-    def __init__(self, scenes_folder, transform, resize_height, resize_width, k_shots=4, time_step=4, num_pred=1, num_workers=2):
-        self.scene_paths = glob.glob(os.path.join(scenes_folder, '*'))
+    def __init__(self, scenes_folder, transform, resize_height, resize_width,\
+        k_shots=4, time_step=4, num_pred=1, num_workers=2, shuffle=True,\
+        drop_last=True, single_scene=False):
         self.scenes_dataloader = {}
         self.dataloader_iters = {}
         self.scenes = []
+        if single_scene:
+            self.setup_singlescene(scenes_folder, transform, resize_height, resize_width, k_shots, time_step, num_pred, num_workers, shuffle, drop_last)
+        else:
+            self.setup_multiscene(scenes_folder, transform, resize_height, resize_width, k_shots, time_step, num_pred, num_workers, shuffle, drop_last)
+
+    def setup_singlescene(self, scenes_folder, transform, resize_height, resize_width, k_shots, time_step, num_pred, num_workers, shuffle, drop_last):
+        self.scene_paths=[scenes_folder]
+        self.scenes.append('default_01')
+        dataset = DataLoader(scenes_folder, transform, resize_height=resize_height,
+                        resize_width=resize_width, time_step=time_step)
+        dl_train = data.DataLoader(dataset, batch_size=k_shots, shuffle=shuffle,
+                                    num_workers=num_workers, drop_last=drop_last)
+        self.scenes_dataloader['default_01'] = dl_train
+        self.dataloader_iters['default_01'] = ('default_01', iter(dl_train))
+
+
+    def setup_multiscene(self, scenes_folder, transform, resize_height, resize_width, k_shots, time_step, num_pred, num_workers, shuffle, drop_last):
+        self.scene_paths = glob.glob(os.path.join(scenes_folder, '*'))
         for scene_path in self.scene_paths:
             scene = scene_path.split('/')[-1]
             self.scenes.append(scene)
             dataset = DataLoader(scene_path, transform, resize_height=resize_height,
                                  resize_width=resize_width, time_step=time_step)
-            dl_train = data.DataLoader(dataset, batch_size=k_shots, shuffle=True,
-                                       num_workers=num_workers, drop_last=True)
+            dl_train = data.DataLoader(dataset, batch_size=k_shots, shuffle=shuffle,
+                                       num_workers=num_workers, drop_last=drop_last)
             self.scenes_dataloader[scene] = dl_train
             self.dataloader_iters[scene] = (scene, iter(dl_train))
 
@@ -107,3 +126,6 @@ class SceneLoader:
             dataloaders.append(self.dataloader_iters[scene])
 
         return dataloaders
+
+    def get_all_dataloaders(self):
+        return self.scenes_dataloader.items()
