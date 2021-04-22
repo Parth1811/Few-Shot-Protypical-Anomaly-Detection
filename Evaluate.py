@@ -1,6 +1,7 @@
 import argparse
 import copy
 import os
+from datetime import datetime
 
 import numpy as np
 import torch
@@ -11,7 +12,7 @@ from torch.autograd import Variable
 
 from model.utils import SceneLoader
 from utils import (AUC, anomaly_score_list, anomaly_score_list_inv,
-                   point_score, psnr, score_sum)
+                   point_score, psnr, score_sum, setup_logger)
 
 parser = argparse.ArgumentParser(description="MNAD")
 parser.add_argument('--gpus', nargs='+', type=str, help='gpus')
@@ -167,13 +168,13 @@ for scene in test_batch.scenes:
         psnr_list[curr_video_name].append(psnr(mse_imgs))
         feature_distance_list[curr_video_name].append(mse_feas)
 
-        if (k+1)%len(test_batch) in video_ref_dict:
+        if (k + 1) % len(test_batch) in video_ref_dict:
             anomaly_score_list_for_video = score_sum(anomaly_score_list(
-                psnr_list[video_name]), anomaly_score_list_inv(feature_distance_list[video_name]), args.alpha)
+                psnr_list[curr_video_name]), anomaly_score_list_inv(feature_distance_list[curr_video_name]), args.alpha)
             os.makedirs(os.path.join(log_dir, scene))
             np.save(os.path.join(log_dir, scene, "%s.npy" %
-                    video_name), [anomaly_score_list_for_video, label_list[prev_k:k+1]])
-            logger.log(15, "Saved anomaly score list at  %s/%s/%s.npy" % (log_dir, scene, video_name))
+                    curr_video_name), [anomaly_score_list_for_video, label_list[prev_k:k + 1]])
+            logger.log(15, "Saved anomaly score list at  %s/%s/%s.npy" % (log_dir, scene, curr_video_name))
             anomaly_score_total_list += anomaly_score_list_for_video
 
 
