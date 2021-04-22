@@ -119,9 +119,10 @@ feature_distance_list = {}
 curr_video_name = 'default'
 prev_k = 0
 k = 0
-
+anomaly_score_total_list = []
 
 for scene in test_batch.scenes:
+    logger.info('Evaluation has started')
     imgs = []
     for _ in range(args.k_shots):
         imgs.append(next(test_batch.dataloader_iters[scene][1]))
@@ -142,6 +143,9 @@ for scene in test_batch.scenes:
     inner_model = copy.deepcopy(model)
     inner_model.eval()
     inner_model.cuda()
+
+    scene_log_dir = os.path.join(log_dir, attach_datetime(""), scene)
+    os.makedirs(os.path.join(log_dir, attach_datetime(""), scene))
 
     for k, (imgs) in enumerate(test_batch.dataloader_iters[scene][1], k):
 
@@ -171,10 +175,10 @@ for scene in test_batch.scenes:
         if (k + 1) % len(test_batch) in video_ref_dict:
             anomaly_score_list_for_video = score_sum(anomaly_score_list(
                 psnr_list[curr_video_name]), anomaly_score_list_inv(feature_distance_list[curr_video_name]), args.alpha)
-            os.makedirs(os.path.join(log_dir, scene))
-            np.save(os.path.join(log_dir, scene, "%s.npy" %
+            np.save(os.path.join(scene_log_dir, "%s.npy" %
                     curr_video_name), [anomaly_score_list_for_video, label_list[prev_k:k + 1]])
-            logger.log(15, "Saved anomaly score list at  %s/%s/%s.npy" % (log_dir, scene, curr_video_name))
+            logger.log(15, "Saved anomaly score list at  %s/%s.npy" %
+                       (scene_log_dir, curr_video_name))
             anomaly_score_total_list += anomaly_score_list_for_video
 
 
