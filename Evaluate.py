@@ -19,6 +19,7 @@ parser.add_argument('--batch_size', type=int, default=4, help='batch size for tr
 parser.add_argument('--test_batch_size', type=int, default=1, help='batch size for test')
 parser.add_argument('--loss_compact', type=float, default=0.1, help='weight of the feature compactness loss')
 parser.add_argument('--loss_separate', type=float, default=0.1, help='weight of the feature separateness loss')
+parser.add_argument('--lr', type=float, default=2e-4, help='Learning rate for update')
 parser.add_argument('--h', type=int, default=256, help='height of input images')
 parser.add_argument('--w', type=int, default=256, help='width of input images')
 parser.add_argument('--c', type=int, default=3, help='channel of input images')
@@ -92,7 +93,7 @@ m_items.cuda()
 params_encoder = list(model.encoder.parameters())
 params_decoder = list(model.decoder.parameters())
 params = params_encoder + params_decoder
-optimizer = torch.optim.Adam(params, lr=args.outer_lr)
+optimizer = torch.optim.Adam(params, lr=args.lr)
 loss_func_mse = nn.MSELoss(reduction='none')
 psnr_list = {}
 feature_distance_list = {}
@@ -105,6 +106,7 @@ for scene in test_batch.scenes:
     for _ in range(args.k_shots):
         imgs.append(next(test_batch.dataloader_iters[scene][1]))
     imgs = np.concatenate(imgs, axis=0)
+    imgs = torch.from_numpy(imgs)
     imgs = Variable(imgs).cuda()
     test_batch.reset_iters()
 
@@ -121,18 +123,16 @@ for scene in test_batch.scenes:
     inner_model.eval()
     inner_model.cuda()
 
-    return inner_model
-
-
     for k, (imgs) in enumerate(test_batch.dataloader_iters[scene][1], k):
 
         if k in video_ref_dict:
             curr_video_name = video_ref_dict[k]
+            psnr_list[curr_video_name] = []
+            feature_distance_list[curr_video_name] = []
 
-        imgs = Variable(imgs)
-        print("doing something ", k)
+        imgs = Variable(imgs).cuda()
 
-        outputs, feas, updated_feas, m_items, softmax_score_query, softmax_score_memory, _, _, _, compactness_loss = innner_model.forward(imgs[:, 0:3 * args.time_step], m_items, False)
+        outputs, feas, updated_feas, m_items, softmax_score_query, softmax_score_memory, _, _, _, compactness_loss = inner_model.forward(imgs[:, 0:3 * args.time_step], m_items, False)
         mse_imgs = torch.mean(loss_func_mse((outputs[0] + 1) / 2, (imgs[0, 3 * args.time_step:] + 1) / 2)).item()
         mse_feas = compactness_loss.item()
 
