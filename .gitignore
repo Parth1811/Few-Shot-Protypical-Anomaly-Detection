@@ -4,3 +4,4 @@ dataset*
 __pycache__*
 *.log
 *.npy
+nohup.out
