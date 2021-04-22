@@ -31,6 +31,7 @@ parser.add_argument('--alpha', type=float, default=0.6, help='weight for the ano
 parser.add_argument('--th', type=float, default=0.01, help='threshold for test updating')
 parser.add_argument('--num_workers', type=int, default=2, help='number of workers for the train loader')
 parser.add_argument('--num_workers_test', type=int, default=1, help='number of workers for the test loader')
+parser.add_argument('--log_dir', type=str, default='log', help='directory of log')
 parser.add_argument('--dataset_type', type=str, default='avenue', help='type of dataset: ped2, avenue, shanghaitech')
 parser.add_argument('--dataset_path', type=str, default='./dataset/', help='directory of data')
 parser.add_argument('--model_dir', type=str, help='directory of model')
@@ -82,6 +83,23 @@ if len(labels) != len(test_batch) + (test_batch.get_video_count() * args.time_st
     raise ValueError("The length of dataset doesn't match the original length for which the labels are avaibale.")
 label_list, video_ref_dict = test_batch.process_label_list(labels)
 
+# attaching date and time to make names unique
+run_start_time = datetime.now()
+def attach_datetime(string):
+    return string + run_start_time.strftime(f"_%d-%m-%H-%M")
+
+# Setting up the logging modules
+# Log levels
+# Inside Iteration 15
+# Epoch End 35
+# Model save 45
+# Log Save 25
+log_dir = os.path.join(args.log_dir, args.dataset_type)
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+log_file_path = os.path.join(log_dir, attach_datetime('test') + '.log')
+logger = setup_logger(log_file_path)
+
 # Loading the trained model
 model = torch.load(args.model_dir)
 model.cuda()
@@ -98,6 +116,7 @@ loss_func_mse = nn.MSELoss(reduction='none')
 psnr_list = {}
 feature_distance_list = {}
 curr_video_name = 'default'
+prev_k = 0
 k = 0
 
 
@@ -126,6 +145,7 @@ for scene in test_batch.scenes:
     for k, (imgs) in enumerate(test_batch.dataloader_iters[scene][1], k):
 
         if k in video_ref_dict:
+            prev_k = k
             curr_video_name = video_ref_dict[k]
             psnr_list[curr_video_name] = []
             feature_distance_list[curr_video_name] = []
@@ -147,12 +167,15 @@ for scene in test_batch.scenes:
         psnr_list[curr_video_name].append(psnr(mse_imgs))
         feature_distance_list[curr_video_name].append(mse_feas)
 
+        if (k+1)%len(test_batch) in video_ref_dict:
+            anomaly_score_list_for_video = score_sum(anomaly_score_list(
+                psnr_list[video_name]), anomaly_score_list_inv(feature_distance_list[video_name]), args.alpha)
+            os.makedirs(os.path.join(log_dir, scene))
+            np.save(os.path.join(log_dir, scene, "%s.npy" %
+                    video_name), [anomaly_score_list_for_video, label_list[prev_k:k+1]])
+            logger.log(15, "Saved anomaly score list at  %s/%s/%s.npy" % (log_dir, scene, video_name))
+            anomaly_score_total_list += anomaly_score_list_for_video
 
-# Measuring the abnormality score and the AUC
-anomaly_score_total_list = []
-for video_name in sorted(video_ref_dict.values()):
-    anomaly_score_total_list += score_sum(anomaly_score_list(
-        psnr_list[video_name]), anomaly_score_list_inv(feature_distance_list[video_name]), args.alpha)
 
 anomaly_score_total_list = np.asarray(anomaly_score_total_list)
 
