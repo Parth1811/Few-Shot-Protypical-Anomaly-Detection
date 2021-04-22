@@ -91,6 +91,7 @@ class SceneLoader:
         self.scenes_dataloader = {}
         self.dataloader_iters = {}
         self.scenes = []
+        self.time_step = time_step
         if single_scene:
             self.setup_singlescene(scenes_folder, transform, resize_height, resize_width, k_shots, time_step, num_pred, num_workers, shuffle, drop_last)
         else:
@@ -129,3 +130,31 @@ class SceneLoader:
 
     def get_all_dataloaders(self):
         return self.scenes_dataloader.items()
+
+    def get_video_count(self):
+        count = 0
+        for scene in self.scenes:
+            count += len(self.scenes_dataloader[scene].dataset.videos)
+        return count
+
+    def process_label_list(self, label_list):
+        processed_list = []
+        video_ref_dict = {}
+        current_index = 0
+        for scene in sorted(self.scenes):
+            videos = self.scenes_dataloader[scene].dataset.videos
+            for video in sorted(videos.keys()):
+                video_ref_dict[len(processed_list)] = video
+                processed_list = np.append(processed_list, label_list[self.time_step + current_index : videos[video]['length'] + current_index])
+                current_index += videos[video]['length']
+        return processed_list, video_ref_dict
+
+    def reset_iters(self):
+        for scene in self.scenes:
+            self.dataloader_iters[scene] = (scene, iter(self.scenes_dataloader[scene]))
+
+    def __len__(self):
+        count = 0
+        for _, dl in self.scenes_dataloader.items():
+            count += len(dl)
+        return count
