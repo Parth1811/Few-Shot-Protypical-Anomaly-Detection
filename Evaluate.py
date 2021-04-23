@@ -177,8 +177,8 @@ for scene in test_batch.scenes:
                 psnr_list[curr_video_name]), anomaly_score_list_inv(feature_distance_list[curr_video_name]), args.alpha)
             np.save(os.path.join(scene_log_dir, "%s.npy" %
                     curr_video_name), [anomaly_score_list_for_video, label_list[prev_k:k + 1]])
-            logger.log(15, "Saved anomaly score list at  %s/%s.npy" %
-                       (scene_log_dir, curr_video_name))
+            logger.log(15, "Saved anomaly score list at  %s.npy" %
+                       (curr_video_name))
             anomaly_score_total_list += anomaly_score_list_for_video
 
 

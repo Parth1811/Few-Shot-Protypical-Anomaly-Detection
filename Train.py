@@ -140,14 +140,7 @@ for epoch in range(args.epochs):
         try:
             scenes = train_dataset.get_dataloaders_of_N_random_scenes(args.N)
         except ValueError:
-            train_dataset = SceneLoader(
-                train_folder,
-                transforms.Compose([transforms.ToTensor()]),
-                resize_height=args.h,
-                resize_width=args.w,
-                k_shots=args.k_shots,
-                time_step=args.time_step
-            )
+            train_dataset.reset_iters()
             logger.log(15, "Epoch: %d : Iteration: %d : Recreated the SceneLoader object ", epoch, iter)
             scenes = train_dataset.get_dataloaders_of_N_random_scenes(args.N)
 
@@ -171,7 +164,7 @@ for epoch in range(args.epochs):
             except StopIteration as e:
                 if scene in train_dataset.scenes:
                     train_dataset.scenes.remove(scene)
-                    logger.log(15, "Epoch: %d : Iteration: %d : Removed scene '%s' for the list of Scenes since exhausted all images", epoch, iter, scene)
+                    logger.log(15, "Epoch: %d : Iteration: %d : Removed scene '%s' from the list of Scenes", epoch, iter, scene)
                 continue
             except Exception as e:
                 logger.error(str(e))
