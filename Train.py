@@ -19,7 +19,7 @@ from utils import *
 
 # Muting the source change warnings
 warnings.filterwarnings("ignore", category=SourceChangeWarning)
-
+check_running(__file__)
 
 # Parsing the input command arguments
 parser = argparse.ArgumentParser(description="MNAD")

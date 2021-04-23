@@ -12,7 +12,9 @@ from torch.autograd import Variable
 
 from model.utils import SceneLoader
 from utils import (AUC, anomaly_score_list, anomaly_score_list_inv,
-                   point_score, psnr, score_sum, setup_logger)
+                   check_running, point_score, psnr, score_sum, setup_logger)
+
+check_running(__file__)
 
 parser = argparse.ArgumentParser(description="MNAD")
 parser.add_argument('--gpus', nargs='+', type=str, help='gpus')

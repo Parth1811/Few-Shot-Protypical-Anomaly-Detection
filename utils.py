@@ -1,6 +1,7 @@
 import copy
 import logging
 import math
+import os
 import sys
 
 import numpy as np
@@ -127,3 +128,19 @@ def setup_logger(log_file_path):
     logging.addLevelName(25, "Log saved")            # cyan
 
     return logger
+
+def check_running(file):
+    n = 0
+    with os.popen('ps aux | grep "python %s" | wc -l' % file) as f:
+        n = int(f.readlines()[0].split('\n')[0])
+
+    if n > 4:
+        res = input("There might be already running session.\n    \
+View output of ongoing session [y]\n    Run new session anyways [n] \n")
+        if res == "y":
+            ret = os.system("tail -f nohup.out")
+            sys.exit()
+        elif res == "n":
+            pass
+        else:
+            sys.exit()
