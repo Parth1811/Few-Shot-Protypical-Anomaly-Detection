@@ -188,4 +188,4 @@ anomaly_score_total_list = np.asarray(anomaly_score_total_list)
 
 accuracy = AUC(anomaly_score_total_list, np.expand_dims(1 - label_list, 0))
 
-logger.log(35, 'AUC: ', accuracy * 100, '%')
+logger.log(35, 'AUC: ' + str(accuracy * 100) + '%')
