@@ -1,3 +1,4 @@
+import copy
 import glob
 import os
 from collections import OrderedDict
@@ -96,6 +97,7 @@ class SceneLoader:
             self.setup_singlescene(scenes_folder, transform, resize_height, resize_width, k_shots, time_step, num_pred, num_workers, shuffle, drop_last)
         else:
             self.setup_multiscene(scenes_folder, transform, resize_height, resize_width, k_shots, time_step, num_pred, num_workers, shuffle, drop_last)
+        self.all_scenes = copy.deepcopy(self.scenes)
 
     def setup_singlescene(self, scenes_folder, transform, resize_height, resize_width, k_shots, time_step, num_pred, num_workers, shuffle, drop_last):
         self.scene_paths=[scenes_folder]
@@ -150,6 +152,7 @@ class SceneLoader:
         return processed_list, video_ref_dict
 
     def reset_iters(self):
+        self.scenes = copy.deepcopy(self.all_scenes)
         for scene in self.scenes:
             self.dataloader_iters[scene] = (scene, iter(self.scenes_dataloader[scene]))
 
