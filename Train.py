@@ -91,14 +91,14 @@ if args.model_dir is not None:
     model = torch.load(args.model_dir)
 else:
     model = convAE(args.c, args.time_step + 1, args.msize, args.fdim, args.mdim)
-model.cuda()
+model = model.cuda()
 model.train()
 
 if args.m_items_dir is not None:
     m_items = torch.load(args.m_items_dir)
 else:
     m_items = F.normalize(torch.rand((args.msize, args.mdim), dtype=torch.float), dim=1)
-m_items.cuda()
+m_items = m_items.cuda()
 
 params_encoder = list(model.encoder.parameters())
 params_decoder = list(model.decoder.parameters())

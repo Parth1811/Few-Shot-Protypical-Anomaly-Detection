@@ -105,11 +105,11 @@ logger = setup_logger(log_file_path)
 
 # Loading the trained model
 model = torch.load(args.model_dir)
-model.cuda()
+model = model.cuda()
 model.train()
 
 m_items = torch.load(args.m_items_dir)
-m_items.cuda()
+m_items = m_items.cuda()
 
 params_encoder = list(model.encoder.parameters())
 params_decoder = list(model.decoder.parameters())
@@ -123,7 +123,7 @@ prev_k = 0
 k = 0
 anomaly_score_total_list = []
 
-for scene in test_batch.scenes:
+for scene in sorted(test_batch.scenes):
     logger.info('Evaluation has started')
     imgs = []
     for _ in range(args.k_shots):

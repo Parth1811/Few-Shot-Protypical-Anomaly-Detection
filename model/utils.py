@@ -112,7 +112,7 @@ class SceneLoader:
 
     def setup_multiscene(self, scenes_folder, transform, resize_height, resize_width, k_shots, time_step, num_pred, num_workers, shuffle, drop_last):
         self.scene_paths = glob.glob(os.path.join(scenes_folder, '*'))
-        for scene_path in self.scene_paths:
+        for scene_path in sorted(self.scene_paths):
             scene = scene_path.split('/')[-1]
             self.scenes.append(scene)
             dataset = DataLoader(scene_path, transform, resize_height=resize_height,
