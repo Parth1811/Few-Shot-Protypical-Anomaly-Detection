@@ -35,7 +35,7 @@ parser.add_argument('--th', type=float, default=0.01, help='threshold for test u
 parser.add_argument('--num_workers', type=int, default=2, help='number of workers for the train loader')
 parser.add_argument('--num_workers_test', type=int, default=1, help='number of workers for the test loader')
 parser.add_argument('--log_dir', type=str, default='log', help='directory of log')
-parser.add_argument('--dataset_type', type=str, default='avenue', help='type of dataset: ped2, avenue, shanghaitech')
+parser.add_argument('--dataset_type', type=str, default='shanghaitech', help='type of dataset: ped2, avenue, shanghaitech')
 parser.add_argument('--dataset_path', type=str, default='./dataset/', help='directory of data')
 parser.add_argument('--model_dir', type=str, help='directory of model')
 parser.add_argument('--m_items_dir', type=str, help='directory of model')
@@ -123,8 +123,10 @@ prev_k = 0
 k = 0
 anomaly_score_total_list = []
 
-for scene in sorted(test_batch.scenes):
-    logger.info('Evaluation has started')
+logger.info('Evaluation has started')
+for s_id, scene in enumerate(sorted(test_batch.scenes), 1):
+    logger.log(15, "Starting Evalution for Scene:%s; %d of %d" %
+               (scene, s_id, len(test_batch.scenes)))
     imgs = []
     for _ in range(args.k_shots):
         imgs.append(next(test_batch.dataloader_iters[scene][1]))
@@ -148,14 +150,16 @@ for scene in sorted(test_batch.scenes):
 
     scene_log_dir = os.path.join(log_dir, attach_datetime(""), scene)
     os.makedirs(os.path.join(log_dir, attach_datetime(""), scene))
+    video_num = 0
 
-    for k, (imgs) in enumerate(test_batch.dataloader_iters[scene][1], k):
+    for k, (imgs) in enumerate(test_batch.dataloader_iters[scene][1], k + 1):
 
         if k in video_ref_dict:
             prev_k = k
             curr_video_name = video_ref_dict[k]
             psnr_list[curr_video_name] = []
             feature_distance_list[curr_video_name] = []
+            video_num += 1
 
         imgs = Variable(imgs).cuda()
 
@@ -179,13 +183,14 @@ for scene in sorted(test_batch.scenes):
                 psnr_list[curr_video_name]), anomaly_score_list_inv(feature_distance_list[curr_video_name]), args.alpha)
             np.save(os.path.join(scene_log_dir, "%s.npy" %
                     curr_video_name), [anomaly_score_list_for_video, label_list[prev_k:k + 1]])
-            logger.log(15, "Saved anomaly score list at  %s.npy" %
-                       (curr_video_name))
+            logger.log(25, "Score list at %s %s.npy; video %d of %d" % (
+                os.path.basename(os.path.normpath(args.log_dir)), curr_video_name, video_num, len(test_batch.scenes_dataloader[scene].dataset.videos)))
             anomaly_score_total_list += anomaly_score_list_for_video
 
 
 anomaly_score_total_list = np.asarray(anomaly_score_total_list)
-
 accuracy = AUC(anomaly_score_total_list, np.expand_dims(1 - label_list, 0))
 
 logger.log(35, 'AUC: ' + str(accuracy * 100) + '%')
+logger.info('Evaluation is finished')
+logger.log(25, "Saved log file " + log_file_path)
