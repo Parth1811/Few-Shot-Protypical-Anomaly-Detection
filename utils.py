@@ -3,6 +3,7 @@ import logging
 import math
 import os
 import sys
+from tqdm import tqdm
 
 import numpy as np
 import torch
@@ -113,7 +114,12 @@ def setup_logger(log_file_path):
     file_handler.setFormatter(formatter)
     file_handler.setLevel(logging.DEBUG)
 
-    stdout_handler = ColoredConsoleHandler(sys.stdout)
+    def write(self, x):
+        if len(x.rstrip()) > 0:
+            tqdm.write(x, file=self.file)
+    out_stream = type("TqdmStream", (), {'file': sys.stdout, 'write':write})()
+
+    stdout_handler = ColoredConsoleHandler(out_stream)
     stdout_handler.setFormatter(formatter)
     stdout_handler.setLevel(logging.DEBUG + 5)
 

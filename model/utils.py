@@ -143,11 +143,14 @@ class SceneLoader:
         processed_list = []
         video_ref_dict = {}
         current_index = 0
+        check = 0
         for scene in sorted(self.scenes):
             videos = self.scenes_dataloader[scene].dataset.videos
             for video in sorted(videos.keys()):
                 video_ref_dict[len(processed_list)] = video
                 processed_list = np.append(processed_list, label_list[self.time_step + current_index : videos[video]['length'] + current_index])
+                check += videos[video]['length'] - self.time_step
+                assert len(processed_list) == check
                 current_index += videos[video]['length']
         return processed_list, video_ref_dict
 

@@ -2,6 +2,7 @@ import argparse
 import copy
 import os
 from datetime import datetime
+from tqdm import tqdm
 
 import numpy as np
 import torch
@@ -91,12 +92,15 @@ run_start_time = datetime.now()
 def attach_datetime(string):
     return string + run_start_time.strftime(f"_%d-%m-%H-%M")
 
+
 # Setting up the logging modules
 # Log levels
 # Inside Iteration 15
 # Epoch End 35
 # Model save 45
 # Log Save 25
+progressbar = tqdm(range(len(test_batch)), desc="Loading…",
+                   ascii=False, dynamic_ncols=True)
 log_dir = os.path.join(args.log_dir, args.dataset_type)
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
@@ -120,7 +124,7 @@ psnr_list = {}
 feature_distance_list = {}
 curr_video_name = 'default'
 prev_k = 0
-k = 0
+k = -1
 anomaly_score_total_list = []
 
 logger.info('Evaluation has started')
@@ -187,6 +191,7 @@ for s_id, scene in enumerate(sorted(test_batch.scenes), 1):
                 os.path.basename(os.path.normpath(args.log_dir)), curr_video_name, video_num, len(test_batch.scenes_dataloader[scene].dataset.videos)))
             anomaly_score_total_list += anomaly_score_list_for_video
 
+        progressbar.update(1)
 
 anomaly_score_total_list = np.asarray(anomaly_score_total_list)
 accuracy = AUC(anomaly_score_total_list, np.expand_dims(1 - label_list, 0))
@@ -194,3 +199,4 @@ accuracy = AUC(anomaly_score_total_list, np.expand_dims(1 - label_list, 0))
 logger.log(35, 'AUC: ' + str(accuracy * 100) + '%')
 logger.info('Evaluation is finished')
 logger.log(25, "Saved log file " + log_file_path)
+progressbar.close()
