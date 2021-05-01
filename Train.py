@@ -3,6 +3,7 @@ import copy
 import os
 import warnings
 from datetime import datetime
+from tqdm import tqdm
 
 import torch
 import torch.nn as nn
@@ -120,6 +121,8 @@ def attach_datetime(string):
 # Epoch End 35
 # Model save 45
 # Log Save 25
+progressbar = tqdm(range(args.epochs * args.iterations), desc="Training "+args.dataset_type,
+                   ascii=False, dynamic_ncols=True, colour="yellow")
 log_dir = os.path.join(args.log_dir, args.dataset_type)
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
@@ -196,6 +199,7 @@ for epoch in range(args.epochs):
 
         # Perfoming outer update
         optimizer.step()
+        progressbar.update(1)
 
     scheduler.step()
 
@@ -218,3 +222,4 @@ for epoch in range(args.epochs):
 
 logger.info('Training is finished')
 logger.log(25, "Saved log file " + log_file_path)
+progressbar.close()

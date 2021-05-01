@@ -99,8 +99,8 @@ def attach_datetime(string):
 # Epoch End 35
 # Model save 45
 # Log Save 25
-progressbar = tqdm(range(len(test_batch)), desc="Loading…",
-                   ascii=False, dynamic_ncols=True)
+progressbar = tqdm(range(len(test_batch)), desc="Evaluating "+args.dataset_type,
+                   ascii=False, dynamic_ncols=True, colour="blue")
 log_dir = os.path.join(args.log_dir, args.dataset_type)
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
