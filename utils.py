@@ -93,8 +93,10 @@ class ColoredConsoleHandler(logging.StreamHandler):
             color = '\x1b[33m'  # yellow
         elif(levelno >= 20):  # INFO
             color = '\x1b[36m'  # cyan
-        elif(levelno >= 10):  # DEBUG
+        elif(levelno >= 15):  # DEBUG
             color = '\x1b[35m'  # pink
+        elif(levelno == 10):  # notification
+            color = '\x1b[32m'  # green
         else:  # NOTSET and anything else
             color = '\x1b[0m'  # normal
         myrecord.msg = color + str(myrecord.msg) + '\x1b[0m'  # normal
@@ -121,7 +123,7 @@ def setup_logger(log_file_path):
 
     stdout_handler = ColoredConsoleHandler(out_stream)
     stdout_handler.setFormatter(formatter)
-    stdout_handler.setLevel(logging.DEBUG + 5)
+    stdout_handler.setLevel(logging.DEBUG)
 
     logger = logging.getLogger()
     logger.addHandler(file_handler)
@@ -132,6 +134,7 @@ def setup_logger(log_file_path):
     logging.addLevelName(35, "Epoch End")            # yellow
     logging.addLevelName(45, "Model Save")           # red
     logging.addLevelName(25, "Log saved")            # cyan
+    logging.addLevelName(12, "Notification")            # cyan
 
     return logger
 

@@ -47,9 +47,8 @@ parser.add_argument('--k_shots', type=int, default=4, help='Number of K shots al
 parser.add_argument('--N', type=int, default=4, help='Number of Scenes sampled at a time')
 parser.add_argument('--iterations', type=int, default=1000, help='Number of iterations for the training loop')
 parser.add_argument('--seperate_save_files_per_epochs', type=bool, default=False, help='Flag which determines wether or not to overide model files while saving')
-parser.add_argument('--single_scene_database', type=bool, default=None, help='Flag changes the behaviour of Dataloader to load when there is only one scene and no seperate scene folders')
+parser.add_argument('--descripton', type=str, default=None, help='Any special description for this run')
 args = parser.parse_args()
-
 
 # Setting up the GPU
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -131,6 +130,7 @@ logger = setup_logger(log_file_path)
 
 
 # Training
+logger.info(args)
 logger.info('Training has Started')
 for epoch in range(args.epochs):
 
