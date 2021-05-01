@@ -44,7 +44,8 @@ parser.add_argument('--k_shots', type=int, default=4, help='Number of K shots al
 parser.add_argument('--N', type=int, default=4, help='Number of Scenes sampled at a time')
 parser.add_argument('--iterations', type=int, default=1000, help='Number of iterations for the training loop')
 parser.add_argument('--single_scene_database', type=bool, default=None, help='Flag changes the behaviour of Dataloader to load when there is only one scene and no seperate scene folders')
-
+parser.add_argument('--save_anomaly_list', type=bool, default=False, help='Flag anomaly list of individual videos')
+parser.add_argument('--descripton', type=str, default=None, help='Any special description for this run')
 args = parser.parse_args()
 
 torch.manual_seed(2020)
@@ -90,7 +91,7 @@ label_list, video_ref_dict = test_batch.process_label_list(labels)
 # attaching date and time to make names unique
 run_start_time = datetime.now()
 def attach_datetime(string):
-    return string + run_start_time.strftime(f"_%d-%m-%H-%M")
+    return string + run_start_time.strftime(f"%d-%m-%H-%M")
 
 
 # Setting up the logging modules
@@ -104,7 +105,7 @@ progressbar = tqdm(range(len(test_batch)), desc="Evaluating "+args.dataset_type,
 log_dir = os.path.join(args.log_dir, args.dataset_type)
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
-log_file_path = os.path.join(log_dir, attach_datetime('test') + '.log')
+log_file_path = os.path.join(log_dir, attach_datetime('test_') + '.log')
 logger = setup_logger(log_file_path)
 
 # Loading the trained model
@@ -127,6 +128,7 @@ prev_k = 0
 k = -1
 anomaly_score_total_list = []
 
+logger.info(args)
 logger.info('Evaluation has started')
 for s_id, scene in enumerate(sorted(test_batch.scenes), 1):
     logger.log(15, "Starting Evalution for Scene:%s; %d of %d" %
@@ -185,10 +187,14 @@ for s_id, scene in enumerate(sorted(test_batch.scenes), 1):
         if (k + 1) % len(test_batch) in video_ref_dict:
             anomaly_score_list_for_video = score_sum(anomaly_score_list(
                 psnr_list[curr_video_name]), anomaly_score_list_inv(feature_distance_list[curr_video_name]), args.alpha)
-            np.save(os.path.join(scene_log_dir, "%s.npy" %
-                    curr_video_name), [anomaly_score_list_for_video, label_list[prev_k:k + 1]])
-            logger.log(25, "Score list at %s %s.npy; video %d of %d" % (
-                os.path.basename(os.path.normpath(args.log_dir)), curr_video_name, video_num, len(test_batch.scenes_dataloader[scene].dataset.videos)))
+            if args.save_anomaly_list:
+                np.save(os.path.join(scene_log_dir, "%s.npy" %
+                        curr_video_name), [anomaly_score_list_for_video, label_list[prev_k:k + 1]])
+                logger.log(25, "Score list at %s %s.npy; %d of %d" % (
+                    os.path.basename(os.path.normpath(args.log_dir)), curr_video_name, video_num, len(test_batch.scenes_dataloader[scene].dataset.videos)))
+            else:
+                logger.log(25, "Processed Scene: %s, Video: %s; %d of %d" % (
+                    scene, curr_video_name, video_num, len(test_batch.scenes_dataloader[scene].dataset.videos)))
             anomaly_score_total_list += anomaly_score_list_for_video
 
         progressbar.update(1)
