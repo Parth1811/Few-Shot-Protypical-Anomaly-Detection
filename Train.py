@@ -32,7 +32,7 @@ parser.add_argument('--h', type=int, default=256, help='height of input images')
 parser.add_argument('--w', type=int, default=256, help='width of input images')
 parser.add_argument('--c', type=int, default=3, help='channel of input images')
 parser.add_argument('--inner_lr', type=float, default=2e-4, help='Initial learning rate for inner update')
-parser.add_argument('--outer_lr', type=float, default=2e-4, help='Initial learning rate for outer update')
+parser.add_argument('--outer_lr', type=float, default=2e-5, help='Initial learning rate for outer update')
 parser.add_argument('--time_step', type=int, default=4, help='length of the frame sequences')
 parser.add_argument('--fdim', type=int, default=512, help='channel dimension of the features')
 parser.add_argument('--mdim', type=int, default=512, help='channel dimension of the memory items')
@@ -105,6 +105,8 @@ params_decoder = list(model.decoder.parameters())
 params = params_encoder + params_decoder
 optimizer = torch.optim.Adam(params, lr=args.outer_lr)
 scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
+dummy_inner_optimizer = torch.optim.Adam(params, lr=args.inner_lr)
+inner_scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(dummy_inner_optimizer, args.epochs//5 + 1)
 loss_func_mse = nn.MSELoss(reduction='none')
 
 
@@ -158,7 +160,7 @@ for epoch in range(args.epochs):
             inner_params_encoder = list(inner_model.encoder.parameters())
             inner_params_decoder = list(inner_model.decoder.parameters())
             inner_params = inner_params_encoder + inner_params_decoder
-            inner_optimizer = torch.optim.Adam(inner_params, lr=args.inner_lr)
+            inner_optimizer = torch.optim.Adam(inner_params, lr=dummy_inner_optimizer.param_groups[0]['lr'])
 
             # Sampling k samples for training and validation each
             try:
@@ -199,6 +201,7 @@ for epoch in range(args.epochs):
 
         # Perfoming outer update
         optimizer.step()
+        inner_scheduler.step()
         progressbar.update(1)
 
     scheduler.step()
